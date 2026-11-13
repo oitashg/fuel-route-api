@@ -1,0 +1,125 @@
+{
+  "info": {
+    "name": "Fuel Route API",
+    "description": "Cheapest fuel stops for a 500-mile-range truck at 10 mpg. Set baseUrl to wherever the API is running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "planId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/v1/health/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "health", ""] }
+      }
+    },
+    {
+      "name": "Assumptions",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/v1/assumptions/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "assumptions", ""] }
+      }
+    },
+    {
+      "name": "Plan a route - Dallas to Chicago",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const body = pm.response.json();",
+              "pm.collectionVariables.set('planId', body.id);",
+              "pm.test('planned', () => pm.response.to.have.status(201));",
+              "pm.test('one routing call', () => pm.expect(body.meta.routing_api_calls).to.be.at.most(1));",
+              "pm.test('gallons match the distance', () =>",
+              "  pm.expect(body.fuel.gallons_burned).to.be.closeTo(body.route.distance_mi / 10, 0.1));",
+              "console.log(body.fuel.stop_count + ' stops, $' + body.fuel.total_cost_usd + ', map: ' + body.map_url);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Dallas, TX\",\n  \"finish\": \"Chicago, IL\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/route/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "route", ""] }
+      }
+    },
+    {
+      "name": "Plan a route - coast to coast",
+      "description": "Six fill-ups with the default $10 stop penalty.",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\",\n  \"geometry\": \"none\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/route/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "route", ""] }
+      }
+    },
+    {
+      "name": "Plan a route - cheapest fuel, any number of stops",
+      "description": "stop_penalty_usd 0 turns the stop penalty off: the lowest possible fuel bill, at the cost of sixteen stops instead of six.",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Los Angeles, CA\",\n  \"finish\": \"New York, NY\",\n  \"geometry\": \"none\",\n  \"stop_penalty_usd\": 0\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/route/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "route", ""] }
+      }
+    },
+    {
+      "name": "Plan a route - coordinates instead of names",
+      "description": "A lat,lon pair skips the geocoder, so this costs one upstream call in total.",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"29.7604,-95.3698\",\n  \"finish\": \"39.7392,-104.9903\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/route/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "route", ""] }
+      }
+    },
+    {
+      "name": "Plan a route - unknown place (400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"start\": \"Nowhere At All, ZZ\",\n  \"finish\": \"Chicago, IL\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/api/v1/route/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "route", ""] }
+      }
+    },
+    {
+      "name": "Stored plan",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/routes/{{planId}}/",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "routes", "{{planId}}", ""]
+        }
+      }
+    },
+    {
+      "name": "Recent plans",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/api/v1/routes/", "host": ["{{baseUrl}}"], "path": ["api", "v1", "routes", ""] }
+      }
+    }
+  ]
+}
