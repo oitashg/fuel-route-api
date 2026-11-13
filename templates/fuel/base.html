@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Fuel route planner{% endblock %}</title>
+<style>
+  :root { --ink:#16181d; --muted:#6b7280; --line:#e3e6ea; --accent:#1b6ef3; --bg:#f7f8fa; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color:var(--ink); background:var(--bg); }
+  a { color:var(--accent); }
+  header { padding:18px 24px; background:#fff; border-bottom:1px solid var(--line); }
+  header h1 { margin:0; font-size:17px; font-weight:600; }
+  header p { margin:3px 0 0; color:var(--muted); font-size:13px; }
+  .wrap { max-width:960px; margin:0 auto; padding:24px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:8px; padding:18px; }
+  label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  input[type=text] { width:100%; padding:9px 10px; border:1px solid #cfd4da; border-radius:6px; font:inherit; }
+  button { padding:9px 18px; border:0; border-radius:6px; background:var(--accent); color:#fff;
+           font:inherit; font-weight:500; cursor:pointer; }
+  button:disabled { opacity:.6; cursor:default; }
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.03em; color:var(--muted); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .muted { color:var(--muted); }
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<header>
+  <h1><a href="/" style="color:inherit;text-decoration:none">Fuel route planner</a></h1>
+  <p>Cheapest way to fuel a 500-mile-range truck across the USA at 10 mpg.</p>
+</header>
+{% block body %}{% endblock %}
+</body>
+</html>

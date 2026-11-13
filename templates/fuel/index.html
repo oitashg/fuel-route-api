@@ -1,0 +1,71 @@
+{% extends "fuel/base.html" %}
+
+{% block body %}
+<div class="wrap">
+  <div class="card">
+    <form id="plan-form">
+      <div style="display:flex;gap:14px;flex-wrap:wrap">
+        <div style="flex:1 1 240px">
+          <label for="start">Start</label>
+          <input type="text" id="start" name="start" value="Dallas, TX" required>
+        </div>
+        <div style="flex:1 1 240px">
+          <label for="finish">Finish</label>
+          <input type="text" id="finish" name="finish" value="Chicago, IL" required>
+        </div>
+      </div>
+      <p style="margin:14px 0 0">
+        <button type="submit" id="go">Plan route</button>
+        <span class="muted" id="status" style="margin-left:10px"></span>
+      </p>
+    </form>
+    <p class="muted" style="margin:16px 0 0;font-size:13px">
+      Town and state, a full address, or a bare <code>lat,lon</code> pair. The API
+      itself is <code>POST /api/v1/route/</code>.
+    </p>
+  </div>
+
+  {% if recent %}
+  <h2 style="font-size:14px;color:#6b7280;margin:26px 0 8px;text-transform:uppercase;letter-spacing:.03em">Recent</h2>
+  <div class="card" style="padding:4px 0">
+    <table>
+      <tr><th>Route</th><th class="num">Miles</th><th class="num">Stops</th><th class="num">Fuel cost</th></tr>
+      {% for plan in recent %}
+      <tr>
+        <td><a href="{% url 'route-map' plan.id %}">{{ plan.start_query }} &rarr; {{ plan.finish_query }}</a></td>
+        <td class="num">{{ plan.total_distance_mi|floatformat:0 }}</td>
+        <td class="num">{{ plan.stop_count }}</td>
+        <td class="num">${{ plan.total_cost_usd|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+document.getElementById('plan-form').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const button = document.getElementById('go');
+  const note = document.getElementById('status');
+  button.disabled = true;
+  note.textContent = 'Planning...';
+  try {
+    const resp = await fetch('/api/v1/route/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        start: document.getElementById('start').value,
+        finish: document.getElementById('finish').value,
+      }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || 'Could not plan that trip.');
+    window.location = data.map_url;
+  } catch (err) {
+    note.textContent = err.message;
+    button.disabled = false;
+  }
+});
+</script>
+{% endblock %}

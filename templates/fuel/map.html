@@ -1,0 +1,120 @@
+{% extends "fuel/base.html" %}
+
+{% block title %}{{ plan.start_query }} to {{ plan.finish_query }}{% endblock %}
+
+{% block head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  #map { height:460px; border-bottom:1px solid var(--line); }
+  .summary { display:flex; flex-wrap:wrap; gap:26px; padding:16px 0 20px; }
+  .summary div span { display:block; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em; }
+  .summary div strong { font-size:20px; font-weight:600; }
+  .pin { background:var(--accent); color:#fff; border-radius:50%; width:22px; height:22px;
+         display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600;
+         box-shadow:0 0 0 2px #fff; }
+</style>
+{% endblock %}
+
+{% block body %}
+<div id="map"></div>
+{{ result|json_script:"plan-data" }}
+
+<div class="wrap">
+  <p class="muted" style="margin:0 0 4px">
+    {{ result.start.name }} &rarr; {{ result.finish.name }}
+  </p>
+  <div class="summary">
+    <div><span>Fuel cost</span><strong>${{ result.fuel.total_cost_usd|floatformat:2 }}</strong></div>
+    <div><span>Distance</span><strong>{{ result.route.distance_mi|floatformat:0 }} mi</strong></div>
+    <div><span>Drive time</span><strong>{{ result.route.duration_h|floatformat:1 }} h</strong></div>
+    <div><span>Fuel stops</span><strong>{{ result.fuel.stop_count }}</strong></div>
+    <div><span>Gallons</span><strong>{{ result.fuel.gallons_purchased|floatformat:1 }}</strong></div>
+    <div><span>Avg price</span><strong>${{ result.fuel.average_price_per_gal|floatformat:3 }}</strong></div>
+  </div>
+
+  {% with tank=result.fuel.departure_tank %}
+  {% if tank %}
+  <p class="muted" style="font-size:13px;margin:-8px 0 16px">
+    Departure tank: {{ tank.gallons|floatformat:1 }} gal
+    (${{ tank.cost_usd|floatformat:2 }}) for the {{ tank.miles_to_first_stop|floatformat:0 }}
+    miles before the first stop, priced at that stop's ${{ tank.price_per_gal }}.
+  </p>
+  {% endif %}
+  {% endwith %}
+
+  <div class="card" style="padding:4px 0">
+    <table>
+      <tr>
+        <th class="num">#</th><th>Truck stop</th><th>Town</th>
+        <th class="num">Route mile</th><th class="num">Detour</th>
+        <th class="num">$/gal</th><th class="num">Gallons</th><th class="num">Cost</th>
+      </tr>
+      {% for stop in result.fuel.stops %}
+      <tr>
+        <td class="num">{{ stop.sequence }}</td>
+        <td>{{ stop.name }}<br><span class="muted" style="font-size:12px">{{ stop.address }}</span></td>
+        <td>{{ stop.city }}, {{ stop.state }}</td>
+        <td class="num">{{ stop.route_mile|floatformat:0 }}</td>
+        <td class="num">{{ stop.detour_mi|floatformat:1 }} mi</td>
+        <td class="num">${{ stop.price_per_gal }}</td>
+        <td class="num">{{ stop.gallons|floatformat:1 }}</td>
+        <td class="num">${{ stop.cost_usd|floatformat:2 }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <p class="muted" style="font-size:13px;margin-top:18px">
+    <a href="/api/v1/routes/{{ plan.id }}/">JSON for this plan</a> &middot;
+    planned {{ plan.created_at }} &middot; one call to the routing service.
+  </p>
+
+  <details style="margin:18px 0 40px">
+    <summary class="muted" style="cursor:pointer;font-size:13px">Assumptions</summary>
+    <ul class="muted" style="font-size:13px">
+      {% for line in result.assumptions %}<li>{{ line }}</li>{% endfor %}
+    </ul>
+  </details>
+</div>
+
+<script>
+const plan = JSON.parse(document.getElementById('plan-data').textContent);
+const map = L.map('map');
+L.tileLayer('{{ tile_url }}', {
+  maxZoom: 18,
+  attribution: '{{ tile_attribution|safe }}',
+}).addTo(map);
+
+// GeoJSON is (lon, lat); Leaflet wants (lat, lon).
+const line = (plan.route.geometry ? plan.route.geometry.coordinates : []).map(c => [c[1], c[0]]);
+if (line.length) {
+  const path = L.polyline(line, {color: '#1b6ef3', weight: 4, opacity: 0.8}).addTo(map);
+  map.fitBounds(path.getBounds(), {padding: [30, 30]});
+} else {
+  map.setView([plan.start.lat, plan.start.lon], 6);
+}
+
+const endIcon = (label) => L.divIcon({
+  className: '', html: '<div class="pin" style="background:#16181d">' + label + '</div>',
+  iconSize: [22, 22], iconAnchor: [11, 11],
+});
+L.marker([plan.start.lat, plan.start.lon], {icon: endIcon('A')}).addTo(map)
+  .bindPopup('Start: ' + plan.start.name);
+L.marker([plan.finish.lat, plan.finish.lon], {icon: endIcon('B')}).addTo(map)
+  .bindPopup('Finish: ' + plan.finish.name);
+
+for (const stop of plan.fuel.stops) {
+  L.marker([stop.lat, stop.lon], {
+    icon: L.divIcon({
+      className: '', html: '<div class="pin">' + stop.sequence + '</div>',
+      iconSize: [22, 22], iconAnchor: [11, 11],
+    }),
+  }).addTo(map).bindPopup(
+    '<strong>' + stop.name + '</strong><br>' + stop.city + ', ' + stop.state +
+    '<br>$' + stop.price_per_gal + '/gal &middot; ' + stop.gallons.toFixed(1) + ' gal' +
+    '<br>$' + stop.cost_usd.toFixed(2) + ' &middot; mile ' + Math.round(stop.route_mile)
+  );
+}
+</script>
+{% endblock %}
